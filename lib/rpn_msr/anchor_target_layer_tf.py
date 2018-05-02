@@ -73,7 +73,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         print 'rpn: gt_boxes.shape', gt_boxes.shape
         print 'rpn: gt_boxes', gt_boxes
 """
-生成feature map相对于origin image的偏移量，降采样率是_feat_stride=16， 所以每个feature map点偏移值是16
+相对于(0,0)位置的anchors在原图的偏移量，需要将其在feature map中相对于(0,0)的偏移量×16。
 使用np.meshgrid生成所有的x,y偏移值的组合，以600*1000的图片为例，feature map为39*46，shift_x， shift_y都是39*46的
 """
     # 1. Generate proposals from bbox deltas and shifted anchors
