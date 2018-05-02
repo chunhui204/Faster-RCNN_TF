@@ -12,7 +12,7 @@ import numpy.random as npr
 import cv2
 from fast_rcnn.config import cfg
 from utils.blob import prep_im_for_blob, im_list_to_blob
-
+#返回了minibatch的信息，{data:图片数组， label:类别数组， roi:roi数组}
 def get_minibatch(roidb, num_classes):
     """Given a roidb, construct a minibatch sampled from it."""
     num_images = len(roidb)
@@ -137,7 +137,9 @@ def _get_image_blob(roidb, scale_inds):
         im = cv2.imread(roidb[i]['image'])
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
+        #按照cfg.TRAIN.SCALES中的尺寸，读入图片金字塔，不过配置文件只给了一种尺寸
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
+        #去均值
         im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
                                         cfg.TRAIN.MAX_SIZE)
         im_scales.append(im_scale)
@@ -145,7 +147,7 @@ def _get_image_blob(roidb, scale_inds):
 
     # Create a blob to hold the input images
     blob = im_list_to_blob(processed_ims)
-
+    #返回图片的二维数组， 所用尺寸的列表
     return blob, im_scales
 
 def _project_im_rois(im_rois, im_scale_factor):
