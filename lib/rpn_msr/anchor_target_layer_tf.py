@@ -16,12 +16,15 @@ from fast_rcnn.bbox_transform import bbox_transform
 import pdb
 
 DEBUG = False
-
+"""
+用于生成anchor, 筛选anchor，
+"""
 def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [16,], anchor_scales = [4 ,8, 16, 32]):
     """
     Assign anchors to ground-truth targets. Produces anchor classification
     labels and bounding-box regression targets.
     """
+    #生成9个anchor， ratio={0.5,1,2}, scale=[8,16,32]
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
 
@@ -44,7 +47,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
     _allowed_border =  0
     # map of shape (..., H, W)
     #height, width = rpn_cls_score.shape[1:3]
-
+    #im_info:height, width
     im_info = im_info[0]
 
     # Algorithm:
@@ -69,25 +72,35 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         print 'height, width: ({}, {})'.format(height, width)
         print 'rpn: gt_boxes.shape', gt_boxes.shape
         print 'rpn: gt_boxes', gt_boxes
-
+"""
+生成feature map相对于origin image的偏移量，降采样率是_feat_stride=16， 所以每个feature map点偏移值是16
+使用np.meshgrid生成所有的x,y偏移值的组合，以600*1000的图片为例，feature map为39*46，shift_x， shift_y都是39*46的
+"""
     # 1. Generate proposals from bbox deltas and shifted anchors
+    #width=39, 产生39个偏移值
     shift_x = np.arange(0, width) * _feat_stride
     shift_y = np.arange(0, height) * _feat_stride
     shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+    #np.ravel将array展成一维，shifts:39*46,4
     shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
                         shift_x.ravel(), shift_y.ravel())).transpose()
     # add A anchors (1, A, 4) to
     # cell K shifts (K, 1, 4) to get
     # shift anchors (K, A, 4)
     # reshape to (K*A, 4) shifted anchors
-    A = _num_anchors
-    K = shifts.shape[0]
+    A = _num_anchors#9
+    K = shifts.shape[0]#39*46=2496
+    #利用+的广播模式，使得每个anchor(对应A)和每个偏移值（对应K）进行进行求和，
+    #all_anchor: (1,K*A,4), 是2496*9个anchor映射到origin image的坐标值
     all_anchors = (_anchors.reshape((1, A, 4)) +
                    shifts.reshape((1, K, 4)).transpose((1, 0, 2)))
     all_anchors = all_anchors.reshape((K * A, 4))
+    #total_anchors=2496
     total_anchors = int(K * A)
 
     # only keep anchors inside the image
+    #筛选anchor：去掉超出边界的anchor，_allowed_border为超出的阈值，代码设置为0，
+    #经过这一步anchor从20000-->6000, inds_inside:边界内anchor的索引
     inds_inside = np.where(
         (all_anchors[:, 0] >= -_allowed_border) &
         (all_anchors[:, 1] >= -_allowed_border) &
@@ -103,7 +116,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
     anchors = all_anchors[inds_inside, :]
     if DEBUG:
         print 'anchors.shape', anchors.shape
-
+    #np.empty用于开辟内存
     # label: 1 is positive, 0 is negative, -1 is dont care
     labels = np.empty((len(inds_inside), ), dtype=np.float32)
     labels.fill(-1)
@@ -114,27 +127,39 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
     overlaps = bbox_overlaps(
         np.ascontiguousarray(anchors, dtype=np.float),
         np.ascontiguousarray(gt_boxes, dtype=np.float))
+    #找到每个anchor对应IOU最大的gt box
     argmax_overlaps = overlaps.argmax(axis=1)
+    #每个anchor对应最大的IOU的值
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
+    #每个gt box对应IOU最大的anchor
     gt_argmax_overlaps = overlaps.argmax(axis=0)
+    #gt对应最大的IOU值
     gt_max_overlaps = overlaps[gt_argmax_overlaps,
                                np.arange(overlaps.shape[1])]
+    #这句其实没用，效果和上上句一样
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
 
+    #RPN_CLOBBER_POSITIVES =1用于惩罚正样本，如果正样本的anchor比较多的话， =0惩罚负样本
+    #其实都会执行labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0，只是顺序不一样，当惩罚正样本
+    #会在labels[gt_argmax_overlaps] = 1之后让IOU《0.3的成为负样本，这样显然会比反顺序负样本数更多。
     if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
         # assign bg labels first so that positive labels can clobber them
+        #cfg.TRAIN.RPN_NEGATIVE_OVERLAP=0.3
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
+    #gt对应的IOU最大的anchor一定是positive
     # fg label: for each gt, anchor with highest overlap
     labels[gt_argmax_overlaps] = 1
 
     # fg label: above threshold IOU
+    #cfg.TRAIN.RPN_POSITIVE_OVERLAP=0.7
     labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
     if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
         # assign bg labels last so that negative labels can clobber positives
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-
+#这样anchor还是很多，以下是每张图的anchor数量为RPN_BATCHSIZE（256），而且pos:neg=1:1， RPN_FG_FRACTION：postive anchor比例
+#从postive anchor随机挑选128个
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
     fg_inds = np.where(labels == 1)[0]
@@ -142,7 +167,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
         labels[disable_inds] = -1
-
+#随机挑选neg的128个
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
     bg_inds = np.where(labels == 0)[0]
