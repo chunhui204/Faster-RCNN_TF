@@ -15,6 +15,7 @@ def im_list_to_blob(ims):
 
     Assumes images are already prepared (means subtracted, BGR order, ...).
     """
+    #由于读入的是图片金字塔，所以图片列表中图片形状不一，按照最大形状确定二维数组大小，相当于给小图片pad 0
     max_shape = np.array([im.shape for im in ims]).max(axis=0)
     num_images = len(ims)
     blob = np.zeros((num_images, max_shape[0], max_shape[1], 3),
