@@ -167,7 +167,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
         labels[disable_inds] = -1
-#随机挑选neg的128个
+#随机挑选neg的128个， 当正样本不足128，使用负样本进行填充
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
     bg_inds = np.where(labels == 0)[0]
@@ -178,12 +178,14 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         #print "was %s inds, disabling %s, now %s inds" % (
             #len(bg_inds), len(disable_inds), np.sum(labels == 0))
 #生成offset的标签值， np.zeros只用于占用空间，应该可以用np.empty代替
+#offset是anchor在origin image的坐标与gt在origin image的坐标间的offset
     bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    #_compute_targets具体实现了x1y1x2y2到offset的转变
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
-
+#论文loss中的p(i), 正样本为1，负样本为0
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_inside_weights[labels == 1, :] = np.array(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
-
+#在cfg文件里面，cfg.TRAIN.RPN_POSITIVE_WEIGHT为－１，因此这里是对正负样本的权重都除以样本总数，相当于实现了1/Ｎreg的功能。
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
         # uniform weighting of examples (given non-uniform sampling)
