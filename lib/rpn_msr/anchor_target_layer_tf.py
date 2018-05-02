@@ -110,6 +110,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
 
     # overlaps between the anchors and the gt boxes
     # overlaps (ex, gt)
+    #bbox_overlaps计算的是anchor与GT box之间的IOU,得到（N，K）数组，分别是anchor num和gt num
     overlaps = bbox_overlaps(
         np.ascontiguousarray(anchors, dtype=np.float),
         np.ascontiguousarray(gt_boxes, dtype=np.float))
@@ -151,7 +152,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         labels[disable_inds] = -1
         #print "was %s inds, disabling %s, now %s inds" % (
             #len(bg_inds), len(disable_inds), np.sum(labels == 0))
-
+#生成offset的标签值， np.zeros只用于占用空间，应该可以用np.empty代替
     bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
 
@@ -252,5 +253,5 @@ def _compute_targets(ex_rois, gt_rois):
     assert ex_rois.shape[0] == gt_rois.shape[0]
     assert ex_rois.shape[1] == 4
     assert gt_rois.shape[1] == 5
-
+#bbox_transform根据anchor和gt box生成offset的标签值，（x* - x_a)/w_a...,见论文offset变换
     return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
