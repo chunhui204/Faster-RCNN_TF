@@ -63,6 +63,7 @@ class VGGnet_train(Network):
              .conv(1,1,len(anchor_scales)*3*4, 1, 1, padding='VALID', relu = False, name='rpn_bbox_pred'))
 
         #========= RoI Proposal ============
+        #reshape：(1,n,n,18)-->(1,9*n,n,2),吧anchor的维度提前，最后的维度和softmax匹配
         (self.feed('rpn_cls_score')
              .reshape_layer(2,name = 'rpn_cls_score_reshape')
              .softmax(name='rpn_cls_prob'))
