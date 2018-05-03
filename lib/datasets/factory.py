@@ -24,6 +24,7 @@ def _selective_search_IJCV_top_k(split, year, top_k):
     imdb.config['top_k'] = top_k
     return imdb
 
+#在__set字典中加入voc_2007_train: pasacal_voc对象，voc_2007_test: pasacal_voc对象..
 # Set up voc_<year>_<split> using selective search "fast" mode
 for year in ['2007', '2012']:
     for split in ['train', 'val', 'trainval', 'test']:
