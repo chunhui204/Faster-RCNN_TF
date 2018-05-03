@@ -256,8 +256,10 @@ def filter_roidb(roidb):
 
 def train_net(network, imdb, roidb, output_dir, pretrained_model=None, max_iters=40000):
     """Train a Fast R-CNN network."""
+    #要求roi必须包含前景或背景中的至少一种
     roidb = filter_roidb(roidb)
     saver = tf.train.Saver(max_to_keep=100)
+    #具体的获取batch的图片，解析xml文件都在train_model中实现
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         sw = SolverWrapper(sess, saver, network, imdb, roidb, output_dir, pretrained_model=pretrained_model)
         print 'Solving...'
