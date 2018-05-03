@@ -143,6 +143,7 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
     # Output rois blob
     # Our RPN implementation only supports a single input image, so all
     # batch inds are 0
+    #返回的blob，第一列全0，表示proposal索引，第1,2,3,4列是x,y,x,y，score只是为了nms选择的依据，其他地方都没用到
     batch_inds = np.zeros((proposals.shape[0], 1), dtype=np.float32)
     blob = np.hstack((batch_inds, proposals.astype(np.float32, copy=False)))
     return blob
