@@ -19,6 +19,7 @@ DEBUG = False
 Outputs object detection proposals by applying estimated bounding-box
 transformations to a set of regular boxes (called "anchors").
 """
+#对rpn生成的proposal进行筛选（包括NMS）
 def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stride = [16,],anchor_scales = [8, 16, 32]):
     # Algorithm:
     #
@@ -33,6 +34,8 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
     # take after_nms_topN proposals after NMS
     # return the top proposals (-> RoIs top, scores top)
     #layer_params = yaml.load(self.param_str_)
+    #生成anchor的目的是将rpn预测的偏移量（代码中为delts）反变换为坐标值
+    #————————————————————————————————————————————————————————————————
     _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
     rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2])
@@ -103,18 +106,26 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
 
     # Convert anchors into proposals via bbox transformations
     proposals = bbox_transform_inv(anchors, bbox_deltas)
+#_________________________________________________________
+#Note: anchor_target_layer中选择pos和neg样本总量为256，只是为了训练rpn网络的（只有标签为0,1参与计算loss），但是标签为-1的也生成了proposal
+#所以proposal个数对应20000
+#在总的流程是anchor --proposal ---(映射到原图)roi
+#proposal并不一定只是前景框， 因为按照score选取了前6000个再送入NMS成为2000个，如果属于前景的proposal不足2000，那么proposal中也会有背景框
+#所以在fast rcnn中进一步筛选
 
+#根据图片大小裁剪proposal
     # 2. clip predicted boxes to image
     proposals = clip_boxes(proposals, im_info[:2])
-
+#min_size * im_info[2]  16* （1/16），意思是proposal要比设置的最小proposal大
     # 3. remove predicted boxes with either height or width < threshold
     # (NOTE: convert min_size to input image scale stored in im_info[2])
     keep = _filter_boxes(proposals, min_size * im_info[2])
     proposals = proposals[keep, :]
     scores = scores[keep]
-
+#NMS筛选 20000 -- 2000
     # 4. sort all (proposal, score) pairs by score from highest to lowest
     # 5. take top pre_nms_topN (e.g. 6000)
+    #根据score（属于前景的概率）取前6000个送入NMS， proposal
     order = scores.ravel().argsort()[::-1]
     if pre_nms_topN > 0:
         order = order[:pre_nms_topN]
