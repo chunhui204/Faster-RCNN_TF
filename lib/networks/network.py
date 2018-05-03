@@ -161,7 +161,12 @@ class Network(object):
             input[0] = input[0][0]
         return tf.reshape(tf.py_func(proposal_layer_py,[input[0],input[1],input[2], cfg_key, _feat_stride, anchor_scales], [tf.float32]),[-1,5],name =name)
 
-
+#负责吧anchor_target_layer_tf输出的内容转化为tensor
+#tf.py_func将任意的python函数func转变为TensorFlow op,格式tf.py_func(func, inp, Tout, stateful=True, name=None)
+#func为python函数，inp为输入（ndarray），Tout为自定义输出格式，下面的输入输出分别为[input[0],input[1],input[2],input[3], _feat_stride, anchor_scales],[tf.float32,tf.float32,tf.float32,tf.float32]
+#rpn_label中存的是所有anchor的label（-1,0,1），rpn_bbox_targets是所有anchor的4回归值,对于标签为-1的anchor，4个回归值全是0，
+#rpn_bbox_inside_weights,rpn_bbox_outside_weights是两个权重，初始化方式不一样
+#要将tf.float32类型转换为tf.Tensor类型
     @layer
     def anchor_target_layer(self, input, _feat_stride, anchor_scales, name):
         if isinstance(input[0], tuple):
@@ -205,6 +210,7 @@ class Network(object):
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)/tf.cast(d,tf.float32)*tf.cast(input_shape[3],tf.float32),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
         else:
+            # 假设rpn_cls_score.shape为[1,n,n,18],最后reshape成[1,9n,n,2]
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)*(tf.cast(input_shape[3],tf.float32)/tf.cast(d,tf.float32)),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
 
