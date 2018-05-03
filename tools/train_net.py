@@ -61,6 +61,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+#faster rcnn入口
 if __name__ == '__main__':
     args = parse_args()
 
@@ -74,12 +75,23 @@ if __name__ == '__main__':
 
     print('Using config:')
     pprint.pprint(cfg)
-
+#修改数据集，要修改get_imdb中的__set字典，并定义自己的imdb类，只要实现pascal_voc类的__init__, gt_roidb, load_annotation
     if not args.randomize:
         # fix the random seeds (numpy and caffe) for reproducibility
         np.random.seed(cfg.RNG_SEED)
+    #根据imdb name(voc_2007_trainval)返回imdb(pascal voc对象)对象
     imdb = get_imdb(args.imdb_name)
     print 'Loaded dataset `{:s}` for training'.format(imdb.name)
+    #修改flip标志，具体反转在mini_batch读取图片的时候，
+    #为roidb加入了图片路径，宽高等信息
+    #roidb：[dict]，每个图片对应一个dict，
+    """
+    {'boxes' : boxes, (gt坐标值)
+                'gt_classes': gt_classes,（21类， int型）
+                'gt_overlaps' : overlaps, （gt_class的onehot形式）
+                'flipped' : False,反转标志
+                'seg_areas' : seg_areas}gt面积
+    """
     roidb = get_training_roidb(imdb)
 
     output_dir = get_output_dir(imdb, None)
@@ -87,8 +99,8 @@ if __name__ == '__main__':
 
     device_name = '/{}:{:d}'.format(args.device,args.device_id)
     print device_name
-
-    network = get_network(args.network_name)
+#修改网络，只需定义相应的train/test网络结构，并修改get_network函数即可
+    network = get_network(args.network_name )
     print 'Use network `{:s}` in training'.format(args.network_name)
 
     train_net(network, imdb, roidb, output_dir,
