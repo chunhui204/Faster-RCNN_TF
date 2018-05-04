@@ -92,6 +92,7 @@ if __name__ == '__main__':
                 'flipped' : False,反转标志
                 'seg_areas' : seg_areas}gt面积
     """
+    #parse xml annotation
     roidb = get_training_roidb(imdb)
 
     output_dir = get_output_dir(imdb, None)
