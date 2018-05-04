@@ -102,7 +102,7 @@ class SolverWrapper(object):
 
     def train_model(self, sess, max_iters):
         """Network training loop."""
-
+#imread image  and parse xml annotation
         data_layer = get_data_layer(self.roidb, self.imdb.num_classes)
 
         # RPN
