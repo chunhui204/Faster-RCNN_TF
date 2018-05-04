@@ -203,6 +203,8 @@ def get_training_roidb(imdb):
     """Returns a roidb (Region of Interest database) for use in training."""
     if cfg.TRAIN.USE_FLIPPED:
         print 'Appending horizontally-flipped training examples...'
+        #parse xml annotation
+        #box = imdb.roidb[i]实现了解析，因为imdb.roidb = imdb._roidb_handler = pascal_voc.gt_roidb
         imdb.append_flipped_images()
         print 'done'
 
