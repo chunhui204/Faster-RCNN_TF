@@ -50,6 +50,7 @@ class VGGnet_train(Network):
              .conv(3, 3, 512, 1, 1, name='conv5_2')
              .conv(3, 3, 512, 1, 1, name='conv5_3'))
         #========= RPN ============
+        #这个3设置的很硬性，len(anchor_scales)=3，所以这个是为了得到9的效果，如果擅自修改配置文件中anchor比例，那和这里就不能兼容
         (self.feed('conv5_3')
              .conv(3,3,512,1,1,name='rpn_conv/3x3')
              .conv(1,1,len(anchor_scales)*3*2 ,1 , 1, padding='VALID', relu = False, name='rpn_cls_score'))
