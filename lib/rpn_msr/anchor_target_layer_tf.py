@@ -159,7 +159,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         # assign bg labels last so that negative labels can clobber positives
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 #这样anchor还是很多，以下是每张图的anchor数量为RPN_BATCHSIZE（256），而且pos:neg=1:1， RPN_FG_FRACTION：postive anchor比例
-#从postive anchor随机挑选128个
+#从postive anchor随机挑选128个,不足128没有进行处理
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
     fg_inds = np.where(labels == 1)[0]
@@ -167,7 +167,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
         labels[disable_inds] = -1
-#随机挑选neg的128个， 当正样本不足128，使用负样本进行填充
+#随机挑选neg的128个，,不足128没有进行处理
+#最后参与计算loss的anchor应该<=256
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
     bg_inds = np.where(labels == 0)[0]
